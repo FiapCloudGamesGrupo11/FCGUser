@@ -14,6 +14,7 @@ namespace UserAPI.Application.Services
         private readonly IValidationBehavior<UserRequestView> _validationCreate;
         private readonly IValidationBehavior<UserRequestUpdateView> _validationUpdate;
         private readonly IUserRepository _userRepository;
+        private readonly IGameCatalogClient _gameCatalog;
         private readonly IAuthHelpers _authHelpers;
         private readonly IEventPublisher _eventPublisher;
 
@@ -24,13 +25,15 @@ namespace UserAPI.Application.Services
             IValidationBehavior<UserRequestUpdateView> validationUpdate,
             IUserRepository userRepository,
             IAuthHelpers authHelpers,
-            IEventPublisher eventPublisher)
+            IEventPublisher eventPublisher,
+            IGameCatalogClient gameCatalog)
         {
             _validationCreate = validationCreate;
             _validationUpdate = validationUpdate;
             _userRepository   = userRepository;
             _authHelpers      = authHelpers;
             _eventPublisher   = eventPublisher;
+            _gameCatalog      = gameCatalog;
         }
 
         public async Task<UserCreatedResponseView> CreateUser(UserRequestView request)
@@ -146,6 +149,18 @@ namespace UserAPI.Application.Services
 
             var result = await _userRepository.Update(user);
             return new UserCreatedResponseView(result.Id, result.Name, result.LastName, result.Email);
+        }
+
+        public async Task BuyGame(Guid userId, Guid gameId, decimal price, CancellationToken ct = default)
+        {
+            var user = await _userRepository.GetById(userId);
+            if (user == null)
+                throw new InvalidOperationException($"User with ID {userId} not found");
+
+            if (user.Status == Status.Blocked || user.Status == Status.Banned)
+                throw new InvalidOperationException($"User account is {user.Status} and cannot make purchases");
+
+            await _gameCatalog.BuyGame(userId, gameId, price, ct);
         }
     }
 }

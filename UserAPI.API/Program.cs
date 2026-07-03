@@ -72,7 +72,7 @@ builder.Services
 // ====================== PIPELINE ======================
 var app = builder.Build();
 
-app.ApplyMigrations();
+// app.ApplyMigrations();
 
 app.UseCustomExceptionMiddleware();
 

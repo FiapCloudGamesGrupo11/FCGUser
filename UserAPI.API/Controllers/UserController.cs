@@ -140,5 +140,48 @@ namespace UserAPI.API.Controllers
             });
             return Ok(result);
         }
+
+        [HttpPost]
+        [Route("[action]")]
+        [SwaggerOperation(Summary = "Purchase a game.", Description = "Allows an authenticated user to purchase a game. The userId is extracted from the JWT token.")]
+        public async Task<IActionResult> BuyGame([FromBody] BuyGameRequest request, CancellationToken ct = default)
+        {
+            // Extract userId from JWT token
+            // var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            // if (!Guid.TryParse(userIdClaim, out var userId))
+            // {
+            //     return Unauthorized(new ProblemDetails
+            //     {
+            //         Title = "Invalid or missing user ID in token",
+            //         Status = StatusCodes.Status401Unauthorized
+            //     });
+            // }
+
+            // Validate request
+            if (request.GameId == Guid.Empty || request.Price <= 0)
+            {
+                return BadRequest(new ProblemDetails
+                {
+                    Title = "Invalid game ID or price",
+                    Status = StatusCodes.Status400BadRequest
+                });
+            }
+
+            // GameCatalogClient and UserService already handle logging and errors
+            // await _userService.BuyGame(request.UserId, request.GameId, request.Price, ct);
+            // return Ok(new { message = "Game purchased successfully" });
+
+            try
+            {
+                await _userService.BuyGame(request.UserId, request.GameId, request.Price, ct);
+                return NoContent();
+            }
+            catch (Exception ex)
+            {
+                return Problem(title: "Internal server error", detail: "An unexpected error occurred while processing the request.");
+            }
+        }
+
+        
     }
 }

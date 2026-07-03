@@ -22,8 +22,11 @@ namespace UserAPI.Infrastructure
             services.AddScoped<IUserRepository, UserRepository>();
             services.AddScoped<IAuthHelpers, AuthHelpers>();
 
+            services.AddHttpContextAccessor();
+            services.AddTransient<AuthorizationDelegatingHandler>();
+
             services.AddHttpClient<IGameCatalogClient, GameCatalogClient>(c =>
-                c.BaseAddress = new Uri(configuration["CatalogApi:BaseUrl"]!));
+                c.BaseAddress = new Uri(configuration["CatalogApi:BaseUrl"]!)).AddHttpMessageHandler<AuthorizationDelegatingHandler>();
 
             var rabbit  = configuration.GetSection("RabbitMQ");
             var factory = new ConnectionFactory

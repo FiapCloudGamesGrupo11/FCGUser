@@ -38,15 +38,16 @@ services:
     container_name: fcg-userapi
     environment:
       ASPNETCORE_ENVIRONMENT: Development
-      ASPNETCORE_URLS: http://+:8080
+      ASPNETCORE_URLS: http://+:8070
       ConnectionStrings__ConnectionString: "Server=sqlserver,1433;Database=UserAPI;User Id=sa;Password=YourStrong@Passw0rd;TrustServerCertificate=True;Encrypt=False"
       RabbitMQ__Host: rabbitmq
       RabbitMQ__Port: "5672"
       RabbitMQ__Username: guest
       RabbitMQ__Password: guest
       RabbitMQ__QueueName: user-created
+      CatalogApi__BaseUrl: "http://catalogapi:8080"
     ports:
-      - "8080:8080"
+      - "8070:8070"
     depends_on:
       sqlserver:
         condition: service_healthy
