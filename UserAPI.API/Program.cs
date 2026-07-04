@@ -72,8 +72,6 @@ builder.Services
 // ====================== PIPELINE ======================
 var app = builder.Build();
 
-// app.ApplyMigrations();
-
 app.UseCustomExceptionMiddleware();
 
 if (app.Environment.IsDevelopment())
@@ -86,5 +84,6 @@ app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.ApplyMigrations();
 
 app.Run();
