@@ -161,6 +161,9 @@ namespace UserAPI.Application.Services
             return await _gameCatalog.GetUserGames(userId, ct);
         }
 
+        public async Task<IList<CatalogGameItem>> GetAllGames(CancellationToken ct = default)
+            => await _gameCatalog.GetAllGames(ct);
+
         public async Task BuyGame(Guid userId, Guid gameId, decimal price, CancellationToken ct = default)
         {
             var user = await _userRepository.GetById(userId);

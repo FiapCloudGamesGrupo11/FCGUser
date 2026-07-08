@@ -156,6 +156,21 @@ namespace UserAPI.API.Controllers
             return Ok(result);
         }
 
+        [HttpGet]
+        [Route("[action]")]
+        [SwaggerOperation(Summary = "Lista todos os jogos disponíveis no catálogo.")]
+        public async Task<IActionResult> GetAllGames(CancellationToken ct = default)
+        {
+            var result = await _userService.GetAllGames(ct);
+            if (result == null || result.Count == 0)
+                return NotFound(new ProblemDetails
+                {
+                    Title = "Nenhum jogo encontrado no catálogo",
+                    Status = StatusCodes.Status404NotFound
+                });
+            return Ok(result);
+        }
+
         [HttpPost]
         [Route("[action]")]
         [SwaggerOperation(Summary = "Purchase a game.", Description = "Allows an authenticated user to purchase a game. The userId is extracted from the JWT token.")]

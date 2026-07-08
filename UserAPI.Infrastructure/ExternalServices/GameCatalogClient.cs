@@ -36,6 +36,19 @@ namespace UserAPI.Infrastructure.ExternalServices
             return items ?? new List<GameLibraryItem>();
         }
 
+        public async Task<IList<CatalogGameItem>> GetAllGames(CancellationToken ct = default)
+        {
+            var response = await _httpClient.GetAsync("/api/Games/GetAll", ct);
+
+            if (response.StatusCode == HttpStatusCode.NotFound)
+                return new List<CatalogGameItem>();
+
+            response.EnsureSuccessStatusCode();
+
+            var items = await response.Content.ReadFromJsonAsync<IList<CatalogGameItem>>(JsonOptions, ct);
+            return items ?? new List<CatalogGameItem>();
+        }
+
         public async Task BuyGame(Guid userId, Guid gameId, decimal price, CancellationToken ct = default)
         {
             var request = new PurchaseGameRequest
