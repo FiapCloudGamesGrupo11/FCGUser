@@ -5,6 +5,7 @@ using UserAPI.Application.Interfaces;
 using UserAPI.Application.Results;
 using UserAPI.Domain.Entities;
 using UserAPI.Domain.Enums;
+using UserAPI.Domain.ExternalModels;
 using UserAPI.Domain.Interfaces;
 
 namespace UserAPI.Application.Services
@@ -149,6 +150,15 @@ namespace UserAPI.Application.Services
 
             var result = await _userRepository.Update(user);
             return new UserCreatedResponseView(result.Id, result.Name, result.LastName, result.Email);
+        }
+
+        public async Task<IList<GameLibraryItem>> GetUserGames(Guid userId, CancellationToken ct = default)
+        {
+            var user = await _userRepository.GetById(userId);
+            if (user == null)
+                throw new InvalidOperationException($"User with ID {userId} not found");
+
+            return await _gameCatalog.GetUserGames(userId, ct);
         }
 
         public async Task BuyGame(Guid userId, Guid gameId, decimal price, CancellationToken ct = default)

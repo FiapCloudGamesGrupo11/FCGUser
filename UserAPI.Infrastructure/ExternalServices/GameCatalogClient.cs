@@ -23,9 +23,9 @@ namespace UserAPI.Infrastructure.ExternalServices
             _logger = logger;
         }
 
-        public async Task<IList<GameLibraryItem>> GetUserLibraryAsync(Guid userId, CancellationToken ct = default)
+        public async Task<IList<GameLibraryItem>> GetUserGames(Guid userId, CancellationToken ct = default)
         {
-            var response = await _httpClient.GetAsync($"/api/Library?userId={userId}", ct);
+            var response = await _httpClient.GetAsync($"/api/UsersGames/GetGamesByUserId?userId={userId}", ct);
 
             if (response.StatusCode == HttpStatusCode.NotFound)
                 return new List<GameLibraryItem>();
