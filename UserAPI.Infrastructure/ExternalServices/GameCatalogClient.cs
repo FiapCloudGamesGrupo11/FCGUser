@@ -38,7 +38,7 @@ namespace UserAPI.Infrastructure.ExternalServices
 
         public async Task<IList<CatalogGameItem>> GetAllGames(CancellationToken ct = default)
         {
-            var response = await _httpClient.GetAsync("/api/Games/GetAll", ct);
+            var response = await _httpClient.GetAsync("/api/Game/GetAll", ct);
 
             if (response.StatusCode == HttpStatusCode.NotFound)
                 return new List<CatalogGameItem>();
