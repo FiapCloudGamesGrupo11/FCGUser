@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
+using UserAPI.Domain.Entities;
 using UserAPI.Domain.ExternalModels;
 using UserAPI.Domain.Interfaces;
 
@@ -49,18 +50,22 @@ namespace UserAPI.Infrastructure.ExternalServices
             return items ?? new List<CatalogGameItem>();
         }
 
-        public async Task BuyGame(Guid userId, Guid gameId, decimal price, CancellationToken ct = default)
+        public async Task BuyGame(BuyGameEntity requestEntity, CancellationToken ct = default)
         {
             var request = new PurchaseGameRequest
             {
-                UserId = userId,
-                GameId = gameId,
-                ValuePay = price
+                UserId = requestEntity.UserId,
+                GameId = requestEntity.GameId,
+                ValuePay = requestEntity.Price,
+                PaymentMethod = requestEntity.PaymentMethod,
+                CardNumber = requestEntity.CardNumber,
+                Cvv = requestEntity.Cvv,
+                ExpirationDate = requestEntity.ExpirationDate
             };
 
             _logger.LogInformation(
                 "Iniciando compra de jogo. UserId: {UserId}, GameId: {GameId}, Price: {Price}",
-                userId, gameId, price);
+                requestEntity.UserId, requestEntity.GameId, requestEntity.Price);
 
             try
             {
@@ -68,15 +73,15 @@ namespace UserAPI.Infrastructure.ExternalServices
 
                 if (response.StatusCode != HttpStatusCode.NoContent)
                 {
-                    _logger.LogWarning("Jogo não encontrado. GameId: {GameId}", gameId);
-                    throw new InvalidOperationException($"Game with ID {gameId} not found in catalog");
+                    _logger.LogWarning("Jogo não encontrado. GameId: {GameId}", requestEntity.GameId);
+                    throw new InvalidOperationException($"Game with ID {requestEntity.GameId} not found in catalog");
                 }
 
-                _logger.LogInformation("Compra realizada com sucesso. Aguarde a confirmação. UserId: {UserId}, GameId: {GameId}", userId, gameId);
+                _logger.LogInformation("Compra realizada com sucesso. Aguarde a confirmação. UserId: {UserId}, GameId: {GameId}", requestEntity.UserId, requestEntity.GameId);
             }
             catch (HttpRequestException ex)
             {
-                _logger.LogError(ex, "Erro ao realizar compra. UserId: {UserId}, GameId: {GameId}", userId, gameId);
+                _logger.LogError(ex, "Erro ao realizar compra. UserId: {UserId}, GameId: {GameId}", requestEntity.UserId, requestEntity.GameId);
                 throw;
             }
         }

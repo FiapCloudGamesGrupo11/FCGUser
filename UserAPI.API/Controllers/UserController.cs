@@ -203,7 +203,7 @@ namespace UserAPI.API.Controllers
 
             try
             {
-                await _userService.BuyGame(request.UserId, request.GameId, request.Price, ct);
+                await _userService.BuyGame(request, ct);
                 return NoContent();
             }
             catch (Exception ex)

@@ -164,16 +164,26 @@ namespace UserAPI.Application.Services
         public async Task<IList<CatalogGameItem>> GetAllGames(CancellationToken ct = default)
             => await _gameCatalog.GetAllGames(ct);
 
-        public async Task BuyGame(Guid userId, Guid gameId, decimal price, CancellationToken ct = default)
+        public async Task BuyGame(BuyGameRequest requestBuyGame, CancellationToken ct = default)
         {
-            var user = await _userRepository.GetById(userId);
+            var user = await _userRepository.GetById(requestBuyGame.UserId);
             if (user == null)
-                throw new InvalidOperationException($"User with ID {userId} not found");
+                throw new InvalidOperationException($"User with ID {requestBuyGame.UserId} not found");
 
             if (user.Status == Status.Blocked || user.Status == Status.Banned)
                 throw new InvalidOperationException($"User account is {user.Status} and cannot make purchases");
 
-            await _gameCatalog.BuyGame(userId, gameId, price, ct);
+            var requestEntity = new BuyGameEntity(
+                requestBuyGame.UserId,
+                requestBuyGame.GameId,
+                requestBuyGame.Price,
+                requestBuyGame.PaymentMethod,
+                requestBuyGame.CardNumber,
+                requestBuyGame.Cvv,
+                requestBuyGame.ExpirationDate
+            );
+
+            await _gameCatalog.BuyGame(requestEntity, ct);
         }
     }
 }

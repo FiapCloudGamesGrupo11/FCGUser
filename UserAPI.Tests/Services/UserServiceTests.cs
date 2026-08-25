@@ -15,6 +15,7 @@ namespace UserAPI.Tests.Services
         private readonly Mock<IUserRepository> _userRepositoryMock;
         private readonly Mock<IAuthHelpers> _authHelpersMock;
         private readonly Mock<IEventPublisher> _eventPublisherMock;
+        private readonly Mock<IGameCatalogClient> _gameCatalogMock;
 
         public UserServiceTests()
         {
@@ -23,13 +24,16 @@ namespace UserAPI.Tests.Services
             _userRepositoryMock = new Mock<IUserRepository>();
             _authHelpersMock = new Mock<IAuthHelpers>();
             _eventPublisherMock = new Mock<IEventPublisher>();
+            _gameCatalogMock = new Mock<IGameCatalogClient>();
+
 
             _userService = new UserService(
                 _validationCreateMock.Object,
                 _validationUpdateMock.Object,
                 _userRepositoryMock.Object,
                 _authHelpersMock.Object,
-                _eventPublisherMock.Object
+                _eventPublisherMock.Object,
+                _gameCatalogMock.Object
             );
         }
 

@@ -17,6 +17,6 @@ namespace UserAPI.Application.Interfaces
         Task<UserCreatedResponseView> UpdateUser(Guid id, UserRequestUpdateView userRequest);
         Task<IList<GameLibraryItem>> GetUserGames(Guid userId, CancellationToken ct = default);
         Task<IList<CatalogGameItem>> GetAllGames(CancellationToken ct = default);
-        Task BuyGame(Guid userId, Guid gameId, decimal price, CancellationToken ct = default);
+        Task BuyGame(BuyGameRequest requestBuyGame, CancellationToken ct = default);
     }
 }
