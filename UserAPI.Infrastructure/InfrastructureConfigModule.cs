@@ -1,7 +1,9 @@
+using Amazon;
+using Amazon.Runtime;
+using Amazon.SQS;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using RabbitMQ.Client;
 using UserAPI.Domain.Interfaces;
 using UserAPI.Infrastructure.Authorization;
 using UserAPI.Infrastructure.ExternalServices;
@@ -28,17 +30,28 @@ namespace UserAPI.Infrastructure
             services.AddHttpClient<IGameCatalogClient, GameCatalogClient>(c =>
                 c.BaseAddress = new Uri(configuration["CatalogApi:BaseUrl"]!)).AddHttpMessageHandler<AuthorizationDelegatingHandler>();
 
-            var rabbit  = configuration.GetSection("RabbitMQ");
-            var factory = new ConnectionFactory
+            services.AddSingleton<IAmazonSQS>(_ =>
             {
-                HostName = rabbit["Host"]!,
-                Port     = int.Parse(rabbit["Port"]!),
-                UserName = rabbit["Username"]!,
-                Password = rabbit["Password"]!
-            };
-            var connection = factory.CreateConnectionAsync().GetAwaiter().GetResult();
-            services.AddSingleton(connection);
-            services.AddSingleton<IEventPublisher, RabbitMqPublisher>();
+                var region = configuration["AWS:Region"] ?? "us-east-1";
+                var serviceUrl = configuration["AWS:ServiceUrl"];
+
+                if (!string.IsNullOrWhiteSpace(serviceUrl))
+                {
+                    var localConfig = new AmazonSQSConfig
+                    {
+                        ServiceURL = serviceUrl,
+                        AuthenticationRegion = region
+                    };
+
+                    return new AmazonSQSClient(
+                        new BasicAWSCredentials("test", "test"),
+                        localConfig);
+                }
+
+                return new AmazonSQSClient(RegionEndpoint.GetBySystemName(region));
+            });
+
+            services.AddSingleton<IEventPublisher, SqsEventPublisher>();
 
             return services;
         }

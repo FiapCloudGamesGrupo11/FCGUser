@@ -15,21 +15,6 @@ services:
       retries: 10
       start_period: 30s
 
-  rabbitmq:
-    image: rabbitmq:3-management
-    container_name: fcg-rabbitmq
-    environment:
-      RABBITMQ_DEFAULT_USER: guest
-      RABBITMQ_DEFAULT_PASS: guest
-    ports:
-      - "5672:5672"
-      - "15672:15672"
-    healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "ping"]
-      interval: 10s
-      retries: 10
-      start_period: 20s
-
   userapi:
     build:
       context: ./FCGUser/UserAPI.API
@@ -40,18 +25,15 @@ services:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:8070
       ConnectionStrings__ConnectionString: "Server=db,1433;Initial Catalog=FiapCloudGames;User Id=sa;Password=Your_strong!Passw0rd;TrustServerCertificate=True;"
-      RabbitMQ__Host: rabbitmq
-      RabbitMQ__Port: "5672"
-      RabbitMQ__Username: guest
-      RabbitMQ__Password: guest
-      RabbitMQ__QueueName: user-created
+      AWS__Region: us-east-1
+      AWS__ServiceUrl: http://host.docker.internal:4566
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
       CatalogApi__BaseUrl: "http://catalogapi:8080"
     ports:
       - "8070:8070"
     depends_on:
       db:
-        condition: service_healthy
-      rabbitmq:
         condition: service_healthy
 
 volumes:
