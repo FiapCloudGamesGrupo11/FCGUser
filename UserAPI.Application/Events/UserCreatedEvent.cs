@@ -1,3 +1,3 @@
 namespace UserAPI.Application.Events;
 
-public record UserCreatedEvent(Guid Id, string Nome, string Email);
+public record UserCreatedEvent(Guid UserId, string Name, string Email);

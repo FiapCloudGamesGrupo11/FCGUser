@@ -4,7 +4,7 @@
 
 O **FCGUser** é um microsserviço responsável pelo gerenciamento completo de usuários na plataforma **FIAP Cloud Games (FCG)**. Ele fornece funcionalidades de autenticação, autorização, cadastro de usuários, gerenciamento de perfis e publica eventos quando novos usuários são criados.
 
-Este microsserviço implementa arquitetura em camadas (DDD - Domain Driven Design) com separação clara entre camadas de API, Aplicação, Domínio e Infraestrutura. Utiliza **JWT (JSON Web Tokens)** para autenticação e **RabbitMQ** para comunicação assíncrona com outros microsserviços.
+Este microsserviço implementa arquitetura em camadas (DDD - Domain Driven Design) com separação clara entre camadas de API, Aplicação, Domínio e Infraestrutura. Utiliza **JWT (JSON Web Tokens)** para autenticação e publica eventos de notificação no **SQS emulado pelo LocalStack**.
 
 ---
 
@@ -54,7 +54,7 @@ O projeto segue a arquitetura em camadas com Domain Driven Design:
 
 - **Microsoft.AspNetCore.Authentication.JwtBearer**: Autenticação JWT
 - **Swashbuckle.AspNetCore**: Swagger/OpenAPI
-- **RabbitMQ.Client**: Cliente para RabbitMQ
+- **AWSSDK.SQS**: Cliente usado para acessar o SQS emulado pelo LocalStack
 - **Entity Framework Core**: ORM
 - **FluentValidation**: Validação de regras de negócio
 
@@ -67,7 +67,7 @@ O projeto segue a arquitetura em camadas com Domain Driven Design:
 - .NET 10.0 SDK ou superior instalado
 - Docker e Docker Compose (para execução containerizada)
 - SQL Server em execução (ou use o docker-compose fornecido)
-- RabbitMQ em execução (ou use o docker-compose fornecido)
+- LocalStack do repositório FCGInfra em execução
 
 ### Opção 1: Executar com Docker Compose
 
@@ -78,7 +78,7 @@ docker-compose up
 
 Este comando inicia:
 - **SQL Server** na porta 1433
-- **RabbitMQ** na porta 5672 (AMQP) e 15672 (Management UI)
+- **FCGUser API** na porta 8070; o LocalStack deve ser iniciado pelo FCGInfra
 - **FCGUser API** na porta 8070
 
 Verifique se os containers estão saudáveis:
@@ -102,14 +102,11 @@ docker run -d --name sqlserver \
   mcr.microsoft.com/mssql/server:2022-latest
 ```
 
-2. **Certifique-se de que RabbitMQ está em execução**:
+2. **Inicie o LocalStack pelo FCGInfra**:
 
 ```bash
-# Use Docker para RabbitMQ
-docker run -d --name rabbitmq \
-  -p 5672:5672 \
-  -p 15672:15672 \
-  rabbitmq:3-management
+cd ..\FCGInfra
+docker compose -f .\docker\docker-compose.yml up -d localstack
 ```
 
 3. **Configure as variáveis de ambiente** em `UserAPI.API/appsettings.Development.json`:
@@ -124,12 +121,9 @@ docker run -d --name rabbitmq \
     "Issuer": "FiapCloudGames",
     "Audience": "FiapCloudGames.API"
   },
-  "RabbitMQ": {
-    "Host": "localhost",
-    "Port": 5672,
-    "Username": "guest",
-    "Password": "guest",
-    "QueueName": "user-created"
+  "AWS": {
+    "Region": "us-east-1",
+    "ServiceUrl": "http://localhost:4566"
   },
   "CatalogApi": {
     "BaseUrl": "http://localhost:5137"
@@ -172,11 +166,11 @@ A API estará disponível em:
 
 - **URL**: http://localhost:8070/swagger/v1/swagger.json
 
-### RabbitMQ Management UI
+### LocalStack
 
-- **URL**: http://localhost:15672
-- **Usuário**: guest
-- **Senha**: guest
+- **Endpoint**: http://localhost:4566
+- **Fila publicada**: `user-created`
+- **Credenciais locais**: `test` / `test`
 
 ---
 
@@ -459,7 +453,7 @@ FCGUser/
 │   │   ├── Migrations/               # Migrações de banco
 │   │   └── UserDbContext.cs          # DbContext
 │   ├── Messaging/
-│   │   └── RabbitMqPublisher.cs      # Publisher RabbitMQ
+│   │   └── SqsEventPublisher.cs       # Publisher SQS/LocalStack
 │   ├── Repository/                   # Repositories
 │   ├── InfrastructureConfigModule.cs # Configuração da camada
 │   └── UserAPI.Infrastructure.csproj # Arquivo de projeto
@@ -487,12 +481,9 @@ FCGUser/
     "Issuer": "FiapCloudGames",
     "Audience": "FiapCloudGames.API"
   },
-  "RabbitMQ": {
-    "Host": "localhost",
-    "Port": 5672,
-    "Username": "guest",
-    "Password": "guest",
-    "QueueName": "user-created"
+  "AWS": {
+    "Region": "us-east-1",
+    "ServiceUrl": "http://localhost:4566"
   },
   "CatalogApi": {
     "BaseUrl": "http://localhost:5137"
@@ -518,12 +509,11 @@ export JwtSettings__SecretKey=sua-chave-secreta-super-segura
 export JwtSettings__Issuer=FiapCloudGames
 export JwtSettings__Audience=FiapCloudGames.API
 
-# RabbitMQ
-export RabbitMQ__Host=localhost
-export RabbitMQ__Port=5672
-export RabbitMQ__Username=guest
-export RabbitMQ__Password=guest
-export RabbitMQ__QueueName=user-created
+# LocalStack/SQS
+export AWS__Region=us-east-1
+export AWS__ServiceUrl=http://localhost:4566
+export AWS_ACCESS_KEY_ID=test
+export AWS_SECRET_ACCESS_KEY=test
 
 # API Externa
 export CatalogApi__BaseUrl=http://localhost:5137
@@ -579,9 +569,9 @@ dotnet ef database update PreviousMigrationName --project UserAPI.Infrastructure
    ↓
 4. User é salvo no banco de dados
    ↓
-5. UserCreatedEvent é publicado no RabbitMQ
+5. UserCreatedEvent é publicado no SQS do LocalStack
    ↓
-6. FCGNotification consome e envia email
+6. O SQS aciona a Lambda FCGNotification, que envia o email
    ↓
 7. Fluxo de registro concluído
    ↓

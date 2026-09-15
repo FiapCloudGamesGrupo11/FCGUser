@@ -1,5 +1,7 @@
 using Moq;
+using System.Text.Json;
 using UserAPI.Application.DTOs.Request;
+using UserAPI.Application.Events;
 using UserAPI.Application.Interfaces;
 using UserAPI.Application.Services;
 using UserAPI.Domain.Entities;
@@ -61,6 +63,32 @@ namespace UserAPI.Tests.Services
             Assert.NotNull(result);
             Assert.Equal("André", result.Name);
             Assert.Equal("andre@test.com", result.Email);
+
+            _eventPublisherMock.Verify(
+                publisher => publisher.PublishAsync(
+                    It.Is<UserCreatedEvent>(@event =>
+                        @event.UserId == expectedUser.Id &&
+                        @event.Name == expectedUser.Name &&
+                        @event.Email == expectedUser.Email),
+                    "user-created",
+                    It.IsAny<CancellationToken>()),
+                Times.Once);
+        }
+
+        [Fact]
+        public void UserCreatedEvent_ShouldSerializeUsingCanonicalPropertyNames()
+        {
+            var userId = Guid.NewGuid();
+            var @event = new UserCreatedEvent(userId, "André", "andre@test.com");
+
+            using var document = JsonDocument.Parse(JsonSerializer.Serialize(@event));
+            var root = document.RootElement;
+
+            Assert.Equal(userId, root.GetProperty("UserId").GetGuid());
+            Assert.Equal("André", root.GetProperty("Name").GetString());
+            Assert.Equal("andre@test.com", root.GetProperty("Email").GetString());
+            Assert.False(root.TryGetProperty("Id", out _));
+            Assert.False(root.TryGetProperty("Nome", out _));
         }
 
         [Fact]
