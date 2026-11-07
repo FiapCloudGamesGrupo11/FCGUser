@@ -24,6 +24,7 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:8070
+      JwtSettings__SecretKey: "${FCG_JWT_SECRET:?Defina FCG_JWT_SECRET no arquivo .env}"
       ConnectionStrings__ConnectionString: "Server=db,1433;Initial Catalog=FiapCloudGames;User Id=sa;Password=${FCG_SQL_PASSWORD};TrustServerCertificate=True;"
       AWS__Region: us-east-1
       AWS__ServiceUrl: http://host.docker.internal:4566
