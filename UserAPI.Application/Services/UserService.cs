@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using UserAPI.Application.DTOs.Request;
 using UserAPI.Application.DTOs.Response;
 using UserAPI.Application.Events;
@@ -18,6 +19,7 @@ namespace UserAPI.Application.Services
         private readonly IGameCatalogClient _gameCatalog;
         private readonly IAuthHelpers _authHelpers;
         private readonly IEventPublisher _eventPublisher;
+        private readonly ILogger<UserService> _logger;
 
         private const string UserCreatedQueue = "user-created";
 
@@ -27,7 +29,8 @@ namespace UserAPI.Application.Services
             IUserRepository userRepository,
             IAuthHelpers authHelpers,
             IEventPublisher eventPublisher,
-            IGameCatalogClient gameCatalog)
+            IGameCatalogClient gameCatalog,
+            ILogger<UserService> logger)
         {
             _validationCreate = validationCreate;
             _validationUpdate = validationUpdate;
@@ -35,6 +38,7 @@ namespace UserAPI.Application.Services
             _authHelpers      = authHelpers;
             _eventPublisher   = eventPublisher;
             _gameCatalog      = gameCatalog;
+            _logger           = logger;
         }
 
         public async Task<UserCreatedResponseView> CreateUser(UserRequestView request)
@@ -49,9 +53,7 @@ namespace UserAPI.Application.Services
             var user = new User(request.Name, request.LastName, request.Email, request.Password);
             var response = await _userRepository.Create(user);
 
-            await _eventPublisher.PublishAsync(
-                new UserCreatedEvent(response.Id, response.Name, response.Email),
-                UserCreatedQueue);
+            await PublishUserCreatedEventAsync(response);
 
             return Result<UserCreatedResponseView>.Success(
                 new UserCreatedResponseView(response.Id, response.Name, response.LastName, response.Email)).Value;
@@ -66,9 +68,7 @@ namespace UserAPI.Application.Services
             var user = new User(request.Name, request.LastName, request.Email, request.Password, Role.Admin);
             var response = await _userRepository.Create(user);
 
-            await _eventPublisher.PublishAsync(
-                new UserCreatedEvent(response.Id, response.Name, response.Email),
-                UserCreatedQueue);
+            await PublishUserCreatedEventAsync(response);
 
             return Result<UserCreatedResponseView>.Success(
                 new UserCreatedResponseView(response.Id, response.Name, response.LastName, response.Email)).Value;
@@ -83,6 +83,23 @@ namespace UserAPI.Application.Services
 
             var token = _authHelpers.GenerateJwtToken(userResult.Email, userResult.Role.ToString());
             return new LoginResponseView(userResult.Email, token);
+        }
+
+        private async Task PublishUserCreatedEventAsync(User user)
+        {
+            try
+            {
+                await _eventPublisher.PublishAsync(
+                    new UserCreatedEvent(user.Id, user.Name, user.Email),
+                    UserCreatedQueue);
+            }
+            catch (Exception exception)
+            {
+                _logger.LogError(
+                    exception,
+                    "User {UserId} was created, but the user-created event could not be published.",
+                    user.Id);
+            }
         }
 
         public async Task<UserCreatedResponseView> GetUserById(Guid id)
