@@ -85,3 +85,33 @@ jobs:
             exit 1
           fi
           echo "image-uri=$ECR_REGISTRY/$ECR_REPOSITORY@$digest" >> "$GITHUB_OUTPUT"
+
+  deploy-to-eks:
+    needs: build-test-container
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feature/fase-4-ci')
+    concurrency:
+      group: fcg-user-eks-deploy
+      cancel-in-progress: false
+    steps:
+      - name: Autenticar na AWS via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::432342421632:role/GithubActionsOidcRole
+          aws-region: us-east-1
+
+      - name: Configurar contexto do Amazon EKS
+        run: |
+          aws eks update-kubeconfig --name fcg-prod-cluster --region us-east-1
+
+      - name: Atualizar imagem no Kubernetes
+        env:
+          IMAGE_URI: ${{ needs.build-test-container.outputs.image-uri }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$IMAGE_URI" ]]; then
+            echo "::error::O CI não forneceu o digest da imagem publicada."
+            exit 1
+          fi
+          kubectl set image deployment/fcg-user "fcg-user=$IMAGE_URI" -n default
+          kubectl rollout status deployment/fcg-user -n default --timeout=5m
