@@ -4,7 +4,51 @@
 
 O **FCGUser** é um microsserviço responsável pelo gerenciamento completo de usuários na plataforma **FIAP Cloud Games (FCG)**. Ele fornece funcionalidades de autenticação, autorização, cadastro de usuários, gerenciamento de perfis e publica eventos quando novos usuários são criados.
 
-Este microsserviço implementa arquitetura em camadas (DDD - Domain Driven Design) com separação clara entre camadas de API, Aplicação, Domínio e Infraestrutura. Utiliza **JWT (JSON Web Tokens)** para autenticação e publica eventos de notificação no **SQS emulado pelo LocalStack**.
+Este microsserviço implementa arquitetura em camadas (DDD - Domain Driven Design) com separação clara entre camadas de API, Aplicação, Domínio e Infraestrutura. Utiliza **JWT (JSON Web Tokens)** para autenticação e publica eventos de notificação no **SQS**. O LocalStack é usado apenas no ambiente local; na AWS, o serviço usa a cadeia padrão de credenciais e a IAM Role do workload.
+
+## Fase 4 - estado da branch `feature/fase-4-ci`
+
+### O que foi feito
+
+- pipeline de CI com restauração auditada, compilação, 9 testes automatizados e build da imagem Docker;
+- atualização do pacote `System.Security.Cryptography.Pkcs` para uma versão corrigida;
+- validação de dependências diretas e transitivas;
+- remoção do segredo JWT do `appsettings.json`;
+- manutenção do LocalStack somente como dependência do desenvolvimento local.
+
+### Configuração local
+
+Defina os valores sensíveis por variáveis de ambiente. Em PowerShell:
+
+```powershell
+$env:JwtSettings__SecretKey = "VALOR_LOCAL_NAO_VERSIONADO"
+$env:ConnectionStrings__ConnectionString = "CONEXAO_SQL_LOCAL"
+$env:AWS__ServiceUrl = "http://localhost:4566"
+```
+
+Em produção, não configure `AWS__ServiceUrl` nem credenciais AWS estáticas. A aplicação deve obter acesso ao SQS pela IAM Role associada ao workload no EKS.
+
+Para usar o Docker Compose, copie `.env.example` para `.env`, substitua o marcador e mantenha o novo arquivo somente no ambiente local.
+
+### Como testar
+
+Execute na raiz deste repositório:
+
+```powershell
+dotnet restore UserAPI.slnx -p:NuGetAudit=true -warnaserror:NU1901,NU1902,NU1903,NU1904
+dotnet test UserAPI.slnx --configuration Release --no-restore
+dotnet list UserAPI.slnx package --vulnerable --include-transitive
+docker build --tag fcg-user:local .
+```
+
+O resultado esperado é 9 testes aprovados, nenhuma dependência vulnerável conhecida e uma imagem Docker criada com sucesso.
+
+### Como manter
+
+- execute a auditoria de pacotes em toda atualização de dependência;
+- não adicione chaves AWS, segredos JWT ou senhas aos arquivos versionados;
+- preserve a distinção entre o LocalStack local e os endpoints gerenciados da AWS;
+- publique imagens com tags imutáveis e mantenha o pipeline reproduzível.
 
 ---
 
@@ -97,7 +141,7 @@ docker-compose ps
 # Use Docker apenas para SQL Server
 docker run -d --name sqlserver \
   -e 'ACCEPT_EULA=Y' \
-  -e 'MSSQL_SA_PASSWORD=Your_strong!Passw0rd' \
+  -e 'MSSQL_SA_PASSWORD=DEFINA_LOCALMENTE' \
   -p 1433:1433 \
   mcr.microsoft.com/mssql/server:2022-latest
 ```
@@ -114,10 +158,10 @@ docker compose -f .\docker\docker-compose.yml up -d localstack
 ```json
 {
   "ConnectionStrings": {
-    "ConnectionString": "Server=localhost,1433;Database=FiapCloudGames;User Id=sa;Password=Your_strong!Passw0rd;TrustServerCertificate=True"
+    "ConnectionString": "DEFINA_VIA_VARIAVEL_DE_AMBIENTE"
   },
   "JwtSettings": {
-    "SecretKey": "_07P\\Wbk|}j:Bp-zC/%`701{Owu?B_dJLSDJaljdlajdlajlda",
+    "SecretKey": "DEFINA_VIA_VARIAVEL_DE_AMBIENTE",
     "Issuer": "FiapCloudGames",
     "Audience": "FiapCloudGames.API"
   },
@@ -203,7 +247,7 @@ Arquivo: `appsettings.json`
 
 ```json
 "JwtSettings": {
-  "SecretKey": "sua-chave-secreta-super-segura-aqui",
+  "SecretKey": "DEFINA_VIA_VARIAVEL_DE_AMBIENTE",
   "Issuer": "FiapCloudGames",
   "Audience": "FiapCloudGames.API"
 }
@@ -474,10 +518,10 @@ FCGUser/
 ```json
 {
   "ConnectionStrings": {
-    "ConnectionString": "Server=localhost,1433;Database=FiapCloudGames;User Id=sa;Password=Your_strong!Passw0rd;TrustServerCertificate=True"
+    "ConnectionString": "DEFINA_VIA_VARIAVEL_DE_AMBIENTE"
   },
   "JwtSettings": {
-    "SecretKey": "_07P\\Wbk|}j:Bp-zC/%`701{Owu?B_dJLSDJaljdlajdlajlda",
+    "SecretKey": "DEFINA_VIA_VARIAVEL_DE_AMBIENTE",
     "Issuer": "FiapCloudGames",
     "Audience": "FiapCloudGames.API"
   },
@@ -502,7 +546,7 @@ FCGUser/
 
 ```bash
 # Banco de Dados
-export ConnectionStrings__ConnectionString=Server=localhost,1433;Database=FiapCloudGames;User Id=sa;Password=Your_strong!Passw0rd;TrustServerCertificate=True
+export ConnectionStrings__ConnectionString=DEFINA_LOCALMENTE
 
 # JWT
 export JwtSettings__SecretKey=sua-chave-secreta-super-segura
@@ -606,7 +650,7 @@ dotnet ef database update PreviousMigrationName --project UserAPI.Infrastructure
 
 ```bash
 # Ver dados atuais
-sqlcmd -S localhost,1433 -U sa -P "Your_strong!Passw0rd"
+sqlcmd -S localhost,1433 -U sa -P "SENHA_LOCAL"
 > SELECT * FROM Users;
 
 # Limpar dados (desenvolvimento apenas)

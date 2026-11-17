@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using Moq;
 using System.Text.Json;
 using UserAPI.Application.DTOs.Request;
@@ -18,6 +19,7 @@ namespace UserAPI.Tests.Services
         private readonly Mock<IAuthHelpers> _authHelpersMock;
         private readonly Mock<IEventPublisher> _eventPublisherMock;
         private readonly Mock<IGameCatalogClient> _gameCatalogMock;
+        private readonly Mock<ILogger<UserService>> _loggerMock;
 
         public UserServiceTests()
         {
@@ -27,6 +29,7 @@ namespace UserAPI.Tests.Services
             _authHelpersMock = new Mock<IAuthHelpers>();
             _eventPublisherMock = new Mock<IEventPublisher>();
             _gameCatalogMock = new Mock<IGameCatalogClient>();
+            _loggerMock = new Mock<ILogger<UserService>>();
 
 
             _userService = new UserService(
@@ -35,7 +38,8 @@ namespace UserAPI.Tests.Services
                 _userRepositoryMock.Object,
                 _authHelpersMock.Object,
                 _eventPublisherMock.Object,
-                _gameCatalogMock.Object
+                _gameCatalogMock.Object,
+                _loggerMock.Object
             );
         }
 
@@ -73,6 +77,38 @@ namespace UserAPI.Tests.Services
                     "user-created",
                     It.IsAny<CancellationToken>()),
                 Times.Once);
+        }
+
+        [Fact]
+        public async Task CreateUser_ShouldReturnCreatedUser_WhenEventPublishingFails()
+        {
+            var request = new UserRequestView
+            {
+                Name = "André",
+                LastName = "Costa",
+                Email = "andre@test.com",
+                Password = "Test@123456!!"
+            };
+            var expectedUser = new User("André", "Costa", request.Email, "hashedpassword123");
+
+            _authHelpersMock
+                .Setup(helper => helper.ComputeSha256Hash(request.Password))
+                .Returns("hashedpassword123");
+            _userRepositoryMock
+                .Setup(repository => repository.Create(It.IsAny<User>()))
+                .ReturnsAsync(expectedUser);
+            _eventPublisherMock
+                .Setup(publisher => publisher.PublishAsync(
+                    It.IsAny<UserCreatedEvent>(),
+                    "user-created",
+                    It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new HttpRequestException("SQS unavailable"));
+
+            var result = await _userService.CreateUser(request);
+
+            Assert.NotNull(result);
+            Assert.Equal(expectedUser.Id, result.Id);
+            Assert.Equal(expectedUser.Email, result.Email);
         }
 
         [Fact]
